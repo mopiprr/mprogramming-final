@@ -30,32 +30,34 @@
     <ImageView
         android:id="@+id/imageView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:layout_below="@id/buttonLayout"
         android:layout_marginTop="16dp"
-        android:scaleType="centerCrop"
+        android:scaleType="centerInside"
+        android:adjustViewBounds="true"
         android:visibility="gone"
         android:contentDescription="Preview Image" />
 
-    <!-- Add this TextView for displaying the category -->
+    <!-- This TextView displays the classification result, now below the image -->
     <TextView
         android:id="@+id/tvCategoryResult"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_above="@id/btnBack"
-        android:layout_marginBottom="16dp"
+        android:layout_below="@id/imageView"
+        android:layout_marginTop="16dp"
         android:textSize="18sp"
         android:textStyle="bold"
         android:gravity="center"
         android:visibility="gone" />
 
+    <!-- The back button is now placed below the classification result -->
     <Button
         android:id="@+id/btnBack"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
+        android:layout_below="@id/tvCategoryResult"
         android:layout_centerHorizontal="true"
-        android:layout_marginBottom="16dp"
+        android:layout_marginTop="16dp"
         android:text="Kembali"
         android:visibility="gone" />
 
