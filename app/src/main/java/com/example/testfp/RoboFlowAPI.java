@@ -21,8 +21,8 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 public class RoboFlowAPI {
     private static final String ROBOFLOW_API_KEY = "N8XMwzMYT2XhLZiVCP8K";
-    private static final String ROBOFLOW_MODEL_ID = "soto-type-detection";
-    private static final String ROBOFLOW_MODEL_VERSION = "5";
+    private static final String ROBOFLOW_MODEL_ID = "soto-detector-for-real-this-time";
+    private static final String ROBOFLOW_MODEL_VERSION = "1";
 
     // Base URL for Roboflow serverless inference API
     private static final String API_BASE_URL = "https://serverless.roboflow.com/";
