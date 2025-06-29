@@ -7,16 +7,15 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
-import android.view.MenuItem;
 import android.view.View;
-import android.widget.ImageView; // --- ADDED: Import for ImageView
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import android.Manifest;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -28,114 +27,107 @@ import java.io.IOException;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final int CAMERA_REQUEST_CODE = 100;
-    private static final int GALLERY_REQUEST_CODE = 200;
+    // --- Permission constants ---
+    private static final int CAMERA_PERMISSION_CODE = 100;
     private static final int STORAGE_PERMISSION_CODE = 300;
 
-    // --- Updated UI element variables ---
+    // --- UI element variables ---
     private FloatingActionButton btnCamera;
     private BottomNavigationView bottomNavigation;
     private TextView tvInfo;
-    private ImageView ivBackgroundSoto; // --- ADDED: Variable for the main background image
+    private ImageView ivHeader;
+    private ImageView ivUserImage; // ADDED: Variable for the user's photo
 
     private RoboFlowAPI roboFlowAPI;
+
+    // --- Modern ActivityResultLaunchers ---
+    private ActivityResultLauncher<Intent> cameraLauncher;
+    private ActivityResultLauncher<String> galleryLauncher;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // --- Find views by their NEW IDs from the updated XML ---
+        // --- Find views by their IDs ---
         btnCamera = findViewById(R.id.btn_camera);
         bottomNavigation = findViewById(R.id.bottom_navigation);
         tvInfo = findViewById(R.id.tv_info);
-        ivBackgroundSoto = findViewById(R.id.iv_background_soto); // --- ADDED: Link to the ImageView
+        ivHeader = findViewById(R.id.iv_header);
+        ivUserImage = findViewById(R.id.iv_user_image); // ADDED: Link to the new ImageView
 
         roboFlowAPI = new RoboFlowAPI(this);
 
+        initializeLaunchers();
         checkAndRequestPermissions();
 
-        btnCamera.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                takePhoto();
-            }
-        });
+        btnCamera.setOnClickListener(v -> takePhoto());
 
-        bottomNavigation.setOnItemSelectedListener(new BottomNavigationView.OnItemSelectedListener() {
-            @Override
-            public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-                int itemId = item.getItemId();
-                if (itemId == R.id.nav_upload) {
-                    openImagePicker();
-                    return true;
-                } else if (itemId == R.id.nav_history) {
-                    Toast.makeText(MainActivity.this, "History clicked!", Toast.LENGTH_SHORT).show();
-                    return true;
-                }
-                return false;
+        bottomNavigation.setOnItemSelectedListener(item -> {
+            int itemId = item.getItemId();
+            if (itemId == R.id.nav_upload) {
+                openImagePicker();
+                return true;
+            } else if (itemId == R.id.nav_history) {
+                startActivity(new Intent(MainActivity.this, HistoryActivity.class));
+                return true;
             }
+            return false;
         });
-        bottomNavigation.setItemIconTintList(null);
     }
 
-    private void checkAndRequestPermissions() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, CAMERA_REQUEST_CODE);
-        }
+    private void initializeLaunchers() {
+        cameraLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        Bitmap imageBitmap = (Bitmap) result.getData().getExtras().get("data");
+                        if (imageBitmap != null) {
+                            // MODIFIED: Added logic to show the image
+                            displayAndClassifyImage(imageBitmap);
+                        }
+                    }
+                });
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_MEDIA_IMAGES}, STORAGE_PERMISSION_CODE);
-            }
-        } else {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, STORAGE_PERMISSION_CODE);
-            }
-        }
+        galleryLauncher = registerForActivityResult(
+                new ActivityResultContracts.GetContent(),
+                uri -> {
+                    if (uri != null) {
+                        try {
+                            Bitmap imageBitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), uri);
+                            // MODIFIED: Added logic to show the image
+                            displayAndClassifyImage(imageBitmap);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
+    }
+
+    // ADDED: A new helper method to avoid repeating code
+    private void displayAndClassifyImage(Bitmap bitmap) {
+        // Show the user's image
+        ivHeader.setVisibility(View.GONE); // Hide the header to make space
+        ivUserImage.setVisibility(View.VISIBLE);
+        ivUserImage.setImageBitmap(bitmap);
+
+        // Classify the image
+        classifyImage(bitmap);
     }
 
     private void takePhoto() {
-        Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        if (cameraIntent.resolveActivity(getPackageManager()) != null) {
-            startActivityForResult(cameraIntent, CAMERA_REQUEST_CODE);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            cameraLauncher.launch(cameraIntent);
         } else {
-            Toast.makeText(this, "Camera not available", Toast.LENGTH_SHORT).show();
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION_CODE);
         }
     }
 
     private void openImagePicker() {
-        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-        intent.setType("image/*");
-        startActivityForResult(Intent.createChooser(intent, "Select Picture"), GALLERY_REQUEST_CODE);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
-        if (resultCode == RESULT_OK) {
-            Bitmap imageBitmap = null;
-            if (requestCode == CAMERA_REQUEST_CODE && data != null) {
-                imageBitmap = (Bitmap) data.getExtras().get("data");
-            } else if (requestCode == GALLERY_REQUEST_CODE && data != null) {
-                Uri selectedImageUri = data.getData();
-                try {
-                    imageBitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), selectedImageUri);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show();
-                }
-            }
-
-            if (imageBitmap != null) {
-                // --- ADDED: Set the user's image as the new background ---
-                ivBackgroundSoto.setImageBitmap(imageBitmap);
-
-                // We still classify the image and update the text as before
-                classifyImage(imageBitmap);
-            }
-        }
+        galleryLauncher.launch("image/*");
     }
 
     private void classifyImage(Bitmap bitmap) {
@@ -146,6 +138,7 @@ public class MainActivity extends AppCompatActivity {
             public void onSuccess(String result) {
                 runOnUiThread(() -> {
                     tvInfo.setText(result);
+                    HistoryManager.getInstance().addHistoryItem(bitmap, result);
                 });
             }
 
@@ -158,16 +151,30 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // --- Permission Handling ---
+    private void checkAndRequestPermissions() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION_CODE);
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, STORAGE_PERMISSION_CODE);
+            }
+        }
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == CAMERA_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+        if (requestCode == CAMERA_PERMISSION_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Camera permission granted", Toast.LENGTH_SHORT).show();
+            } else {
                 Toast.makeText(this, "Camera permission is required to take photos", Toast.LENGTH_SHORT).show();
             }
         } else if (requestCode == STORAGE_PERMISSION_CODE) {
             if (grantResults.length > 0 && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "Storage permission is required to access images", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Storage permission is required to access images on older Android versions", Toast.LENGTH_SHORT).show();
             }
         }
     }

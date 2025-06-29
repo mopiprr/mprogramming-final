@@ -20,9 +20,9 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 public class RoboFlowAPI {
-    private static final String ROBOFLOW_API_KEY = "N8XMwzMYT2XhLZiVCP8K";
-    private static final String ROBOFLOW_MODEL_ID = "soto-detector-for-real-this-time";
-    private static final String ROBOFLOW_MODEL_VERSION = "1";
+    private static final String ROBOFLOW_API_KEY = "fxdobFPPM9oBTQiXrOAQ";
+    private static final String ROBOFLOW_MODEL_ID = "soto-detector-for-real-this-time-kjvtp";
+    private static final String ROBOFLOW_MODEL_VERSION = "2";
 
     // Base URL for Roboflow serverless inference API
     private static final String API_BASE_URL = "https://serverless.roboflow.com/";
